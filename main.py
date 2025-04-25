@@ -1,14 +1,94 @@
 import streamlit as st
-from datetime import date
 import uuid
+from datetime import date, datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
+# -------------------------------
 # Users dictionary
+# -------------------------------
 users = {
-    "Waleed": {"password": "1234", "email": ""},
-    "Abdullah": {"password": "12345", "email": "3abdullah.cx@gmail.com"},
-    "Shaden": {"password": "123456", "email": ""},
-    "Hussah": {"password": "1234567", "email": ""}
+    "Waleed": {
+        "password": "1234",
+        "email": ""
+    },
+    "Abdullah": {
+        "password": "12345",
+        "email": ""
+    },
+    "Shaden": {
+        "password": "123456",
+        "email": ""
+    },
+    "Hussah": {
+        "password": "1234567",
+        "email": "hussah.hussa@gmail.com",
+        "projects": {
+            1: {
+                "name": "Employee Attrition Prediction",
+                "subject": "Machine Learning",
+                "marks": 95,
+                "deadline": "2025-04-28",
+                "description": "Building a model to predict employee attrition using scikit-learn.",
+                "status": "In Progress"
+            },
+            2: {
+                "name": "Solar Energy Analysis",
+                "subject": "Data Science",
+                "marks": 100,
+                "deadline": "2025-04-27",
+                "description": "A project analyzing solar energy usage using Python and Power BI.",
+                "status": "In Progress"
+            }
+        }
+    }
 }
+
+
+def send_reminder_emails():
+    sender_email = "project1.tuwaiq.bootcamp@gmail.com"
+    password = "pdyc kmxj uxfd cscs"
+    today = datetime.today()
+
+    for username, user_info in users.items():
+        email = user_info.get("email", "")
+        projects = user_info.get("projects", {})
+
+        if not email:
+            continue
+        if not projects:
+            continue
+
+        for project_id, project in projects.items():
+            project_name = project["name"]
+            deadline_str = project["deadline"]
+            deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
+            days_left = (deadline - today).days
+
+            if days_left <2 :
+                message = MIMEMultipart("alternative")
+                message["Subject"] = f"Reminder: Project '{project_name}' is due soon!"
+                message["From"] = sender_email
+                message["To"] = email
+
+                body = f"""
+Hello {username},
+
+Just a quick reminder: your project **{project_name}** is due in 2 days (on {deadline_str}).
+
+Good luck!
+"""
+                message.attach(MIMEText(body, "plain"))
+
+                try:
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                        server.login(sender_email, password)
+                        server.sendmail(sender_email, email, message.as_string())
+                except Exception as e:
+                    pass
+
+send_reminder_emails()
 
 ## Start session
 if "logged_in" not in st.session_state:
@@ -45,6 +125,13 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.email = email
+
+                if "projects" in users[username]:
+                    for project_id, project in users[username]["projects"].items():
+                        uid = str(uuid.uuid4())
+                        st.session_state.in_progress[uid] = project
+
+
                 if username not in st.session_state.user_data:
                     st.session_state.user_data[username] = []
                 st.success(f"Welcome, {username}!")
