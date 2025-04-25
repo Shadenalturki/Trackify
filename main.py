@@ -19,7 +19,7 @@ users = {
     },
     "Shaden": {
         "password": "123456",
-        "email": ""
+        "email": "shadeeenalturkiii@gmail.com"
     },
     "Hussah": {
         "password": "1234567",
@@ -105,6 +105,9 @@ if "completed" not in st.session_state:
     st.session_state.completed = {}
 if "show_project_form" not in st.session_state:
     st.session_state.show_project_form = False
+if "editing_project_key" not in st.session_state:
+    st.session_state.editing_project_key = None
+
 
 # Login Page
 if not st.session_state.logged_in:
@@ -150,6 +153,13 @@ if st.session_state.logged_in:
     # Project Form (appears as popup when button is clicked)
     if st.session_state.show_project_form:
         with st.form("add_project_form"):
+            is_editing = st.session_state.editing_project_key is not None
+
+            if is_editing:
+                project = st.session_state.in_progress[st.session_state.editing_project_key]
+            else:
+                project = {"name": "", "subject": "", "marks": 0, "deadline": date.today(), "description": ""}
+
             st.subheader("Add New Project")
             project_name = st.text_input("Project Name*", key="project_name")
             subject = st.text_input("Subject", key="subject")
@@ -160,23 +170,34 @@ if st.session_state.logged_in:
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("Submit"):
-                    if not project_name:
-                        st.error("Project name is required!")
+                    project_data = {
+                        "name": project_name,
+                        "subject": subject,
+                        "marks": marks,
+                        "deadline": deadline,
+                        "description": description,
+                        "status": "In Progress"
+                    }
+
+                    if is_editing:
+                        st.session_state.in_progress[st.session_state.editing_project_key] = project_data
+                        # Also update in users
+                        for user_project_id, user_project in users[st.session_state.username].get("projects", {}).items():
+                            if user_project["name"] == project["name"] and user_project["subject"] == project["subject"]:
+                                users[st.session_state.username]["projects"][user_project_id] = project_data
+                                break
                     else:
-                        project_id = str(uuid.uuid4())
-                        st.session_state.in_progress[project_id] = {
-                            "name": project_name,
-                            "subject": subject,
-                            "marks": marks,
-                            "deadline": deadline,
-                            "description": description,
-                            "status": "In Progress"
-                        }
-                        st.session_state.show_project_form = False
-                        st.rerun()
+                        new_key = str(uuid.uuid4())
+                        st.session_state.in_progress[new_key] = project_data
+
+                    st.session_state.show_project_form = False
+                    st.session_state.editing_project_key = None
+                    st.rerun()
+
             with col2:
                 if st.form_submit_button("Cancel"):
                     st.session_state.show_project_form = False
+                    st.session_state.editing_project_key = None
                     st.rerun()
     
     # Display Projects
@@ -189,7 +210,7 @@ if st.session_state.logged_in:
         if not st.session_state.in_progress:
             st.info("No projects in progress")
         else:
-            for project_id, project in st.session_state.in_progress.items():
+            for project_id, project in list(st.session_state.in_progress.items()):
                 with st.expander(f"📝 {project['name']} - {project['subject']}"):
                     st.write(f"**Marks:** {project['marks']}")
                     st.write(f"**Deadline:** {project['deadline']}")
@@ -198,6 +219,9 @@ if st.session_state.logged_in:
                         st.session_state.completed[project_id] = project
                         st.session_state.completed[project_id]['status'] = "Completed"
                         del st.session_state.in_progress[project_id]
+                    if st.button(f"✏️ Edit", key=f"edit_{project_id}"):
+                        st.session_state.editing_project_key = project_id
+                        st.session_state.show_project_form = True
                         st.rerun()
     
     with col2:
