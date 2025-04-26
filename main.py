@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 users = {
     "Waleed": {
         "password": "1234",
-        "email": ""
+        "email": "wellygr77@gmail.com"
     },
     "Abdullah": {
         "password": "12345",
@@ -122,45 +122,41 @@ if "show_project_form" not in st.session_state:
     st.session_state.show_project_form = False
 if "editing_project_key" not in st.session_state:
     st.session_state.editing_project_key = None
+if "sort_option" not in st.session_state:
+    st.session_state.sort_option = "Default"
 
 
 # Login Page
 if not st.session_state.logged_in:
     st.title("🔐 Trackify")
-    st.badge("Your project Tracker 🤩!", color="orange")
+    st.badge("Your Project Tracker 🤩!", color="orange")
+
     username = st.text_input("Username")
-    email = st.text_input("Your Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
         if username in users and users[username]["password"] == password:
-            if "@" not in email or "." not in email.split("@")[-1]:
-                st.error("❌ Please enter a valid email address")
-            else:
-                # Update the email in the users dictionary
-                users[username]["email"] = email
-                
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.email = email
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.session_state.email = users[username]["email"]  # Fetch stored email if needed
 
-                if "projects" in users[username]:
-                    for project_id, project in users[username]["projects"].items():
-                        uid = str(uuid.uuid4())
-                        st.session_state.in_progress[uid] = project
+            # Load user projects if any
+            if "projects" in users[username]:
+                for project_id, project in users[username]["projects"].items():
+                    uid = str(uuid.uuid4())
+                    st.session_state.in_progress[uid] = project
 
+            if username not in st.session_state.user_data:
+                st.session_state.user_data[username] = []
 
-                if username not in st.session_state.user_data:
-                    st.session_state.user_data[username] = []
-                st.success(f"Welcome, {username}!")
-                st.rerun()
+            st.success(f"Welcome, {username}!")
+            st.rerun()
         else:
             st.error("❌ Invalid username or password")
-
 # Main App Page
 if st.session_state.logged_in:
     st.title(f"Welcome to Trackify, {st.session_state.username}!")
-    
+
     # Add Project Button
     if st.button("➕ Add New Project"):
         st.session_state.show_project_form = True
@@ -214,10 +210,34 @@ if st.session_state.logged_in:
                     st.session_state.show_project_form = False
                     st.session_state.editing_project_key = None
                     st.rerun()
+
+    # Sort options
+    st.header("Your Projects")
+    sort_option = st.selectbox(
+        "Sort by:",
+        ["Default", "Marks (High to Low)", "Marks (Low to High)", "Deadline (Nearest first)",
+         "Deadline (Furthest first)"],
+        index=0
+    )
+
+        #Function to sort projects
+    def sort_projects(projects, sort_option):
+        projects_list = list(projects.items())
+
+        if sort_option == "Marks (High to Low)":
+            projects_list.sort(key=lambda x: x[1]['marks'], reverse=True)
+        elif sort_option == "Marks (Low to High)":
+            projects_list.sort(key=lambda x: x[1]['marks'])
+        elif sort_option == "Deadline (Nearest first)":
+            projects_list.sort(key=lambda x: x[1]['deadline'])
+        elif sort_option == "Deadline (Furthest first)":
+            projects_list.sort(key=lambda x: x[1]['deadline'], reverse=True)
+
+        return projects_list
     
     # Display Projects
     st.header("Your Projects")
-    
+    st.caption(f"Currently sorted by: **{sort_option}**")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -225,7 +245,8 @@ if st.session_state.logged_in:
         if not st.session_state.in_progress:
             st.info("No projects in progress")
         else:
-            for project_id, project in list(st.session_state.in_progress.items()):
+            sorted_projects = sort_projects(st.session_state.in_progress, sort_option)
+            for project_id, project in sorted_projects:
                 with st.expander(f"📝 {project['name']} - {project['subject']}"):
                     st.write(f"**Marks:** {project['marks']}")
                     st.write(f"**Deadline:** {project['deadline']}")
@@ -244,7 +265,8 @@ if st.session_state.logged_in:
         if not st.session_state.completed:
             st.info("No completed projects")
         else:
-            for project_id, project in st.session_state.completed.items():
+            sorted_completed = sort_projects(st.session_state.completed, sort_option)
+            for project_id, project in sorted_completed:
                 with st.expander(f"✅ {project['name']} - {project['subject']}"):
                     st.write(f"**Marks:** {project['marks']}")
                     st.write(f"**Deadline:** {project['deadline']}")
@@ -260,4 +282,5 @@ if st.session_state.logged_in:
         st.session_state.username = ""
         st.session_state.email = ""
         st.session_state.show_project_form = False
+        st.session_state.sort_option = "Default"
         st.rerun()
