@@ -46,49 +46,64 @@ users = {
 }
 
 
-def send_reminder_emails():
+def send_reminder_emails(users):
     sender_email = "project1.tuwaiq.bootcamp@gmail.com"
     password = "pdyc kmxj uxfd cscs"
     today = datetime.today()
 
-    for username, user_info in users.items():
-        email = user_info.get("email", "")
-        projects = user_info.get("projects", {})
+# retuen users that have email and project 
+    def get_users_with_email_and_projects(users_dict):
+        matched_users = {}
+        for username, user_info in users_dict.items():
+            email = user_info.get("email", "")
+            projects = user_info.get("projects", {})
+            if email and projects:
+                matched_users[username] = user_info
+        return matched_users
 
-        if not email:
-            continue
-        if not projects:
-            continue
+     
+# check the dead line 
+    get_due_soon_projects = lambda projects: [
+        (project_id, project_info)
+        for project_id, project_info in projects.items()
+        if (datetime.strptime(project_info["deadline"], "%Y-%m-%d") - today).days <2
+    ]
 
-        for project_id, project in projects.items():
+    eligible_users = get_users_with_email_and_projects(users)
+
+    for username, user_info in eligible_users.items():
+        email = user_info["email"]
+        projects = user_info["projects"]
+
+        due_projects = get_due_soon_projects(projects)
+
+        for project_id, project in due_projects:
             project_name = project["name"]
             deadline_str = project["deadline"]
-            deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
-            days_left = (deadline - today).days
 
-            if days_left <2 :
-                message = MIMEMultipart("alternative")
-                message["Subject"] = f"Reminder: Project '{project_name}' is due soon!"
-                message["From"] = sender_email
-                message["To"] = email
+            message = MIMEMultipart("alternative")
+            message["Subject"] = f"Reminder: Project '{project_name}' is due soon!"
+            message["From"] = sender_email
+            message["To"] = email
 
-                body = f"""
+            body = f"""
 Hello {username},
 
 Just a quick reminder: your project **{project_name}** is due in 2 days (on {deadline_str}).
 
 Good luck!
 """
-                message.attach(MIMEText(body, "plain"))
+            message.attach(MIMEText(body, "plain"))
 
-                try:
-                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                        server.login(sender_email, password)
-                        server.sendmail(sender_email, email, message.as_string())
-                except Exception as e:
-                    pass
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                    server.login(sender_email, password)
+                    server.sendmail(sender_email, email, message.as_string())
+                print(f"✅ Email sent to {email} for project '{project_name}'")
+            except Exception as e:
+                print(f"❌ Failed to send email to {email}: {e}")
 
-send_reminder_emails()
+send_reminder_emails(users)
 
 ## Start session
 if "logged_in" not in st.session_state:
