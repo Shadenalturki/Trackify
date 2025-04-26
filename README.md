@@ -23,7 +23,9 @@ It allows users to log in, track project progress, sort projects, mark them as c
    cd trackify
 
 2. Install the required libraries:
+   ```bash
    pip install -r requirements.txt
 
 3. Run the application:
+   ```bash
    streamlit run main.py
