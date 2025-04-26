@@ -1,9 +1,13 @@
 import streamlit as st
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import time as sleep_time  # To avoid confusion with datetime.time
+
+
+st.set_page_config(initial_sidebar_state="collapsed")
 
 # -------------------------------
 # Users dictionary
@@ -15,7 +19,7 @@ users = {
     },
     "Abdullah": {
         "password": "12345",
-        "email": ""
+        "email": "3abdullah.cx@gmail.com"
     },
     "Shaden": {
         "password": "123456",
@@ -45,6 +49,16 @@ users = {
     }
 }
 
+def check_midnight_and_send_emails():
+    """Check if current time is midnight and send reminder emails if it is."""
+    now = datetime.now()
+    midnight = time(0, 0)  # 12:00 AM
+    
+    # Check if current time is between 00:00:00 and 00:00:59
+    if now.time().hour == midnight.hour and now.time().minute == midnight.minute:
+        send_reminder_emails()
+        # Sleep for 61 seconds to prevent multiple sends in the same minute
+        sleep_time.sleep(61)
 
 def send_reminder_emails():
     sender_email = "project1.tuwaiq.bootcamp@gmail.com"
@@ -66,7 +80,7 @@ def send_reminder_emails():
             deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
             days_left = (deadline - today).days
 
-            if days_left <2 :
+            if days_left < 2:
                 message = MIMEMultipart("alternative")
                 message["Subject"] = f"Reminder: Project '{project_name}' is due soon!"
                 message["From"] = sender_email
@@ -88,7 +102,8 @@ Good luck!
                 except Exception as e:
                     pass
 
-send_reminder_emails()
+# Call the function to check time and send emails
+check_midnight_and_send_emails()
 
 ## Start session
 if "logged_in" not in st.session_state:
@@ -112,7 +127,7 @@ if "editing_project_key" not in st.session_state:
 # Login Page
 if not st.session_state.logged_in:
     st.title("🔐 Trackify")
-    st.badge("Your project Tracker 🤩!", color="orange")
+    st.badge("Your projects Tracker 🤩!", color="orange")
     username = st.text_input("Username")
     email = st.text_input("Your Email")
     password = st.text_input("Password", type="password")
@@ -133,7 +148,6 @@ if not st.session_state.logged_in:
                     for project_id, project in users[username]["projects"].items():
                         uid = str(uuid.uuid4())
                         st.session_state.in_progress[uid] = project
-
 
                 if username not in st.session_state.user_data:
                     st.session_state.user_data[username] = []
@@ -161,7 +175,7 @@ if st.session_state.logged_in:
                 project = {"name": "", "subject": "", "marks": 0, "deadline": date.today(), "description": ""}
 
             st.subheader("Add New Project")
-            project_name = st.text_input("Project Name*", key="project_name")
+            project_name = st.text_input("Project Name", key="project_name")
             subject = st.text_input("Subject", key="subject")
             marks = st.number_input("Marks", min_value=0, max_value=100, key="marks")
             deadline = st.date_input("Deadline", key="deadline")
@@ -219,6 +233,7 @@ if st.session_state.logged_in:
                         st.session_state.completed[project_id] = project
                         st.session_state.completed[project_id]['status'] = "Completed"
                         del st.session_state.in_progress[project_id]
+                        st.rerun()
                     if st.button(f"✏️ Edit", key=f"edit_{project_id}"):
                         st.session_state.editing_project_key = project_id
                         st.session_state.show_project_form = True
