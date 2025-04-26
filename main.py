@@ -15,7 +15,7 @@ st.set_page_config(initial_sidebar_state="collapsed")
 users = {
     "Waleed": {
         "password": "1234",
-        "email": ""
+        "email": "wellygr77@gmail.com"
     },
     "Abdullah": {
         "password": "12345",
@@ -60,50 +60,65 @@ def check_midnight_and_send_emails():
         # Sleep for 61 seconds to prevent multiple sends in the same minute
         sleep_time.sleep(61)
 
-def send_reminder_emails():
+def send_reminder_emails(users):
     sender_email = "project1.tuwaiq.bootcamp@gmail.com"
     password = "pdyc kmxj uxfd cscs"
     today = datetime.today()
 
-    for username, user_info in users.items():
-        email = user_info.get("email", "")
-        projects = user_info.get("projects", {})
+# retuen users that have email and project 
+    def get_users_with_email_and_projects(users_dict):
+        matched_users = {}
+        for username, user_info in users_dict.items():
+            email = user_info.get("email", "")
+            projects = user_info.get("projects", {})
+            if email and projects:
+                matched_users[username] = user_info
+        return matched_users
 
-        if not email:
-            continue
-        if not projects:
-            continue
+     
+# check the dead line 
+    get_due_soon_projects = lambda projects: [
+        (project_id, project_info)
+        for project_id, project_info in projects.items()
+        if (datetime.strptime(project_info["deadline"], "%Y-%m-%d") - today).days <2
+    ]
 
-        for project_id, project in projects.items():
+    eligible_users = get_users_with_email_and_projects(users)
+
+    for username, user_info in eligible_users.items():
+        email = user_info["email"]
+        projects = user_info["projects"]
+
+        due_projects = get_due_soon_projects(projects)
+
+        for project_id, project in due_projects:
             project_name = project["name"]
             deadline_str = project["deadline"]
-            deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
-            days_left = (deadline - today).days
 
-            if days_left < 2:
+            if days_left <2 :
                 message = MIMEMultipart("alternative")
                 message["Subject"] = f"Reminder: Project '{project_name}' is due soon!"
                 message["From"] = sender_email
                 message["To"] = email
 
-                body = f"""
+            body = f"""
 Hello {username},
 
 Just a quick reminder: your project **{project_name}** is due in 2 days (on {deadline_str}).
 
 Good luck!
 """
-                message.attach(MIMEText(body, "plain"))
+            message.attach(MIMEText(body, "plain"))
 
-                try:
-                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                        server.login(sender_email, password)
-                        server.sendmail(sender_email, email, message.as_string())
-                except Exception as e:
-                    pass
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                    server.login(sender_email, password)
+                    server.sendmail(sender_email, email, message.as_string())
+                print(f"✅ Email sent to {email} for project '{project_name}'")
+            except Exception as e:
+                print(f"❌ Failed to send email to {email}: {e}")
 
-# Call the function to check time and send emails
-check_midnight_and_send_emails()
+send_reminder_emails()
 
 ## Start session
 if "logged_in" not in st.session_state:
@@ -122,32 +137,29 @@ if "show_project_form" not in st.session_state:
     st.session_state.show_project_form = False
 if "editing_project_key" not in st.session_state:
     st.session_state.editing_project_key = None
+if "sort_option" not in st.session_state:
+    st.session_state.sort_option = "Default"
 
 
 # Login Page
 if not st.session_state.logged_in:
     st.title("🔐 Trackify")
-    st.badge("Your projects Tracker 🤩!", color="orange")
+    st.badge("Your project Tracker 🤩!", color="orange")
     username = st.text_input("Username")
-    email = st.text_input("Your Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
         if username in users and users[username]["password"] == password:
-            if "@" not in email or "." not in email.split("@")[-1]:
-                st.error("❌ Please enter a valid email address")
-            else:
-                # Update the email in the users dictionary
-                users[username]["email"] = email
-                
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.email = email
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.session_state.email = users[username]["email"]  # Fetch stored email if needed
 
-                if "projects" in users[username]:
-                    for project_id, project in users[username]["projects"].items():
-                        uid = str(uuid.uuid4())
-                        st.session_state.in_progress[uid] = project
+            # Load user projects if any
+            if "projects" in users[username]:
+                for project_id, project in users[username]["projects"].items():
+                    uid = str(uuid.uuid4())
+                    st.session_state.in_progress[uid] = project
+
 
                 if username not in st.session_state.user_data:
                     st.session_state.user_data[username] = []
@@ -155,11 +167,10 @@ if not st.session_state.logged_in:
                 st.rerun()
         else:
             st.error("❌ Invalid username or password")
-
 # Main App Page
 if st.session_state.logged_in:
     st.title(f"Welcome to Trackify, {st.session_state.username}!")
-    
+
     # Add Project Button
     if st.button("➕ Add New Project"):
         st.session_state.show_project_form = True
@@ -213,10 +224,34 @@ if st.session_state.logged_in:
                     st.session_state.show_project_form = False
                     st.session_state.editing_project_key = None
                     st.rerun()
+
+    # Sort options
+    st.header("Your Projects")
+    sort_option = st.selectbox(
+        "Sort by:",
+        ["Default", "Marks (High to Low)", "Marks (Low to High)", "Deadline (Nearest first)",
+         "Deadline (Furthest first)"],
+        index=0
+    )
+
+        #Function to sort projects
+    def sort_projects(projects, sort_option):
+        projects_list = list(projects.items())
+
+        if sort_option == "Marks (High to Low)":
+            projects_list.sort(key=lambda x: x[1]['marks'], reverse=True)
+        elif sort_option == "Marks (Low to High)":
+            projects_list.sort(key=lambda x: x[1]['marks'])
+        elif sort_option == "Deadline (Nearest first)":
+            projects_list.sort(key=lambda x: x[1]['deadline'])
+        elif sort_option == "Deadline (Furthest first)":
+            projects_list.sort(key=lambda x: x[1]['deadline'], reverse=True)
+
+        return projects_list
     
     # Display Projects
     st.header("Your Projects")
-    
+    st.caption(f"Currently sorted by: **{sort_option}**")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -224,7 +259,8 @@ if st.session_state.logged_in:
         if not st.session_state.in_progress:
             st.info("No projects in progress")
         else:
-            for project_id, project in list(st.session_state.in_progress.items()):
+            sorted_projects = sort_projects(st.session_state.in_progress, sort_option)
+            for project_id, project in sorted_projects:
                 with st.expander(f"📝 {project['name']} - {project['subject']}"):
                     st.write(f"**Marks:** {project['marks']}")
                     st.write(f"**Deadline:** {project['deadline']}")
@@ -244,7 +280,8 @@ if st.session_state.logged_in:
         if not st.session_state.completed:
             st.info("No completed projects")
         else:
-            for project_id, project in st.session_state.completed.items():
+            sorted_completed = sort_projects(st.session_state.completed, sort_option)
+            for project_id, project in sorted_completed:
                 with st.expander(f"✅ {project['name']} - {project['subject']}"):
                     st.write(f"**Marks:** {project['marks']}")
                     st.write(f"**Deadline:** {project['deadline']}")
@@ -260,4 +297,5 @@ if st.session_state.logged_in:
         st.session_state.username = ""
         st.session_state.email = ""
         st.session_state.show_project_form = False
+        st.session_state.sort_option = "Default"
         st.rerun()
