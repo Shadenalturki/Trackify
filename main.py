@@ -60,65 +60,50 @@ def check_midnight_and_send_emails():
         # Sleep for 61 seconds to prevent multiple sends in the same minute
         sleep_time.sleep(61)
 
-def send_reminder_emails(users):
+def send_reminder_emails():
     sender_email = "project1.tuwaiq.bootcamp@gmail.com"
     password = "pdyc kmxj uxfd cscs"
     today = datetime.today()
 
-# retuen users that have email and project 
-    def get_users_with_email_and_projects(users_dict):
-        matched_users = {}
-        for username, user_info in users_dict.items():
-            email = user_info.get("email", "")
-            projects = user_info.get("projects", {})
-            if email and projects:
-                matched_users[username] = user_info
-        return matched_users
+    for username, user_info in users.items():
+        email = user_info.get("email", "")
+        projects = user_info.get("projects", {})
 
-     
-# check the dead line 
-    get_due_soon_projects = lambda projects: [
-        (project_id, project_info)
-        for project_id, project_info in projects.items()
-        if (datetime.strptime(project_info["deadline"], "%Y-%m-%d") - today).days <2
-    ]
+        if not email:
+            continue
+        if not projects:
+            continue
 
-    eligible_users = get_users_with_email_and_projects(users)
-
-    for username, user_info in eligible_users.items():
-        email = user_info["email"]
-        projects = user_info["projects"]
-
-        due_projects = get_due_soon_projects(projects)
-
-        for project_id, project in due_projects:
+        for project_id, project in projects.items():
             project_name = project["name"]
             deadline_str = project["deadline"]
+            deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
+            days_left = (deadline - today).days
 
-            if days_left <2 :
+            if days_left < 2:
                 message = MIMEMultipart("alternative")
                 message["Subject"] = f"Reminder: Project '{project_name}' is due soon!"
                 message["From"] = sender_email
                 message["To"] = email
 
-            body = f"""
+                body = f"""
 Hello {username},
 
 Just a quick reminder: your project **{project_name}** is due in 2 days (on {deadline_str}).
 
 Good luck!
 """
-            message.attach(MIMEText(body, "plain"))
+                message.attach(MIMEText(body, "plain"))
 
-            try:
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                    server.login(sender_email, password)
-                    server.sendmail(sender_email, email, message.as_string())
-                print(f"✅ Email sent to {email} for project '{project_name}'")
-            except Exception as e:
-                print(f"❌ Failed to send email to {email}: {e}")
+                try:
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                        server.login(sender_email, password)
+                        server.sendmail(sender_email, email, message.as_string())
+                except Exception as e:
+                    pass
 
-send_reminder_emails()
+# Call the function to check time and send emails
+check_midnight_and_send_emails()
 
 ## Start session
 if "logged_in" not in st.session_state:
@@ -141,10 +126,9 @@ if "sort_option" not in st.session_state:
     st.session_state.sort_option = "Default"
 
 
-# Login Page
-if not st.session_state.logged_in:
+def login_page():
     st.title("🔐 Trackify")
-    st.badge("Your project Tracker 🤩!", color="orange")
+    st.badge("Your projects Tracker 🤩!", color="orange")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
@@ -160,15 +144,15 @@ if not st.session_state.logged_in:
                     uid = str(uuid.uuid4())
                     st.session_state.in_progress[uid] = project
 
-
-                if username not in st.session_state.user_data:
-                    st.session_state.user_data[username] = []
-                st.success(f"Welcome, {username}!")
-                st.rerun()
+            if username not in st.session_state.user_data:
+                st.session_state.user_data[username] = []
+            
+            # Use st.rerun() to immediately show the main page
+            st.rerun()
         else:
             st.error("❌ Invalid username or password")
-# Main App Page
-if st.session_state.logged_in:
+
+def main_page():
     st.title(f"Welcome to Trackify, {st.session_state.username}!")
 
     # Add Project Button
@@ -234,7 +218,7 @@ if st.session_state.logged_in:
         index=0
     )
 
-        #Function to sort projects
+    # Function to sort projects
     def sort_projects(projects, sort_option):
         projects_list = list(projects.items())
 
@@ -299,3 +283,9 @@ if st.session_state.logged_in:
         st.session_state.show_project_form = False
         st.session_state.sort_option = "Default"
         st.rerun()
+
+# Main app control flow
+if not st.session_state.logged_in:
+    login_page()
+else:
+    main_page()
