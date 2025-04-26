@@ -14,3 +14,16 @@ It allows users to log in, track project progress, sort projects, mark them as c
 - Delete completed projects from the list.
 - Receive email reminders two days before any project deadline.
 - Log out securely after managing my tasks.
+
+
+## How to Run the Project
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/trackify.git
+   cd trackify
+
+2. Install the required libraries:
+   pip install -r requirements.txt
+
+3. Run the application:
+   streamlit run main.py
