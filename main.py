@@ -162,14 +162,22 @@ def main_page():
     # Project Form (appears as popup when button is clicked)
     if st.session_state.show_project_form:
         with st.form("add_project_form"):
-            is_editing = st.session_state.editing_project_key is not None
-
-            if is_editing:
+            if st.session_state.editing_project_key:
                 project = st.session_state.in_progress[st.session_state.editing_project_key]
+                project_name = project["name"]
+                subject = project["subject"]
+                marks = project["marks"]
+                deadline = project["deadline"]
+                description = project["description"]
             else:
-                project = {"name": "", "subject": "", "marks": 0, "deadline": date.today(), "description": ""}
+                project_name = ""
+                subject = ""
+                marks = 0
+                deadline = date.today()
+                description = ""
 
-            st.subheader("Add New Project")
+            st.subheader("Add or Edit Project")
+
             project_name = st.text_input("Project Name", key="project_name")
             subject = st.text_input("Subject", key="subject")
             marks = st.number_input("Marks", min_value=0, max_value=100, key="marks")
@@ -187,18 +195,13 @@ def main_page():
                         "description": description,
                         "status": "In Progress"
                     }
-
-                    if is_editing:
-                        st.session_state.in_progress[st.session_state.editing_project_key] = project_data
-                        # Also update in users
-                        for user_project_id, user_project in users[st.session_state.username].get("projects", {}).items():
-                            if user_project["name"] == project["name"] and user_project["subject"] == project["subject"]:
-                                users[st.session_state.username]["projects"][user_project_id] = project_data
-                                break
+                    if st.session_state.editing_project_key:
+                       st.session_state.in_progress[st.session_state.editing_project_key] = project_data
                     else:
                         new_key = str(uuid.uuid4())
                         st.session_state.in_progress[new_key] = project_data
 
+                    # Always hide the form and reset after Submit, whether Add or Edit
                     st.session_state.show_project_form = False
                     st.session_state.editing_project_key = None
                     st.rerun()
