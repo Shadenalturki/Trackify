@@ -19,7 +19,7 @@ It allows users to log in, track project progress, sort projects, mark them as c
 ## How to Run the Project
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/trackify.git
+   git clone https://github.com/Shadenalturki/Trackify.git
    cd trackify
 
 2. Install the required libraries:
