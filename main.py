@@ -128,7 +128,7 @@ if "sort_option" not in st.session_state:
 
 def login_page():
     st.title("🔐 Trackify")
-    st.badge("Your projects Tracker 🤩!", color="orange")
+    st.markdown("### Your projects Tracker 🤩!")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
@@ -178,15 +178,16 @@ def main_page():
 
             st.subheader("Add or Edit Project")
 
-            project_name = st.text_input("Project Name", key="project_name")
-            subject = st.text_input("Subject", key="subject")
-            marks = st.number_input("Marks", min_value=0, max_value=100, key="marks")
-            deadline = st.date_input("Deadline", key="deadline")
-            description = st.text_area("Description", key="description")
+            project_name = st.text_input("Project Name", value=project_name, key="project_name")
+            subject = st.text_input("Subject", value=subject, key="subject")
+            marks = st.number_input("Marks", min_value=0, max_value=100, value=marks, key="marks")
+            deadline = st.date_input("Deadline", value=deadline, key="deadline")
+            description = st.text_area("Description", value=description, key="description")
             
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("Submit"):
+                    # new values the user entered
                     project_data = {
                         "name": project_name,
                         "subject": subject,
@@ -195,6 +196,7 @@ def main_page():
                         "description": description,
                         "status": "In Progress"
                     }
+                    # update the old project with the new information
                     if st.session_state.editing_project_key:
                        st.session_state.in_progress[st.session_state.editing_project_key] = project_data
                     else:
