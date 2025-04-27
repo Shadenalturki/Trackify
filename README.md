@@ -1,6 +1,6 @@
 # Trackify - Project and Assignment Tracker
 
-[🚀 View the Deployed App Here](https://trackify-tuwaiq.streamlit.app/)
+[🚀 View the Deployed Website Here](https://trackify-tuwaiq.streamlit.app/)
 
 ## Overview:
 Trackify is an application that helps students and users manage their college assignments and project deadlines efficiently.
